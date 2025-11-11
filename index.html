@@ -1,239 +1,387 @@
-/*
-AutoBlogApp.jsx
-Single-file React component (default export) for an automobile blog.
-Built with Tailwind CSS (no other required UI libs). Includes:
-- Header with logo, search, tag filters
-- Hero section
-- Responsive posts grid with cards
-- Pagination
-- Dark mode toggle (saved to localStorage)
-- Sample posts data (replace with your own or wire to GitHub data)
-
-How to use:
-1) Create a React app (Vite recommended):
-   npm create vite@latest my-autoblog -- --template react
-   cd my-autoblog
-   npm install
-2) Install Tailwind CSS (follow Tailwind docs). Quick setup:
-   npm install -D tailwindcss postcss autoprefixer
-   npx tailwindcss init -p
-   // then configure tailwind.config.js content paths and add @tailwind directives to index.css
-3) Copy this file to src/App.jsx and start the dev server:
-   npm run dev
-4) To deploy on GitHub Pages: build and push the `dist`/`build` folder; or use GitHub Pages action.
-
-Customize: replace `SAMPLE_POSTS` with real posts (fetch from GitHub repo, headless CMS, or markdown parser).
-*/
-
-import React, { useEffect, useMemo, useState } from "react";
-
-// ---------- Sample posts (replace with actual data) ----------
-const SAMPLE_POSTS = [
-  {
-    id: 1,
-    title: "La Tesla Model 3 : autonomie réelle et astuces",
-    excerpt:
-      "Test longue durée de la Model 3 : autonomie réelle, recharge et pièges à éviter.",
-    tags: ["Electrique", "Test", "Tesla"],
-    date: "2025-10-12",
-    cover: "https://images.unsplash.com/photo-1549921296-3ddc6e0fa8c0?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: 2,
-    title: "Top 10 des compactes économiques 2025",
-    excerpt: "Comparatif des meilleures compactes pour la ville et l'autoroute.",
-    tags: ["Comparatif", "Essence"],
-    date: "2025-08-03",
-    cover: "https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: 3,
-    title: "Comment préparer sa voiture pour l'hiver",
-    excerpt: "Checklist simple et rapide pour rouler serein quand les températures chutent.",
-    tags: ["Entretien", "Guide"],
-    date: "2025-11-01",
-    cover: "https://images.unsplash.com/photo-1542367597-1f6a0f3d0b5a?auto=format&fit=crop&w=1200&q=80",
-  },
-  // add more posts here
-];
-
-// ---------- Helpers ----------
-function formatDate(iso) {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString("fr-FR", { year: "numeric", month: "short", day: "numeric" });
-  } catch {
-    return iso;
-  }
-}
-
-// ---------- Main component ----------
-export default function AutoBlogApp() {
-  const [posts] = useState(SAMPLE_POSTS);
-  const [query, setQuery] = useState("");
-  const [selectedTag, setSelectedTag] = useState(null);
-  const [page, setPage] = useState(1);
-  const perPage = 6;
-  const [dark, setDark] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem("autoBlog:dark") === "1";
-  });
-
-  useEffect(() => {
-    if (dark) document.documentElement.classList.add("dark");
-    else document.documentElement.classList.remove("dark");
-    localStorage.setItem("autoBlog:dark", dark ? "1" : "0");
-  }, [dark]);
-
-  const allTags = useMemo(() => {
-    const s = new Set();
-    posts.forEach((p) => p.tags.forEach((t) => s.add(t)));
-    return Array.from(s);
-  }, [posts]);
-
-  const filtered = useMemo(() => {
-    let r = posts.slice();
-    if (query) {
-      const q = query.toLowerCase();
-      r = r.filter(
-        (p) => p.title.toLowerCase().includes(q) || p.excerpt.toLowerCase().includes(q) || p.tags.join(" ").toLowerCase().includes(q)
-      );
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AutoBlog — Accueil</title>
+  <meta name="description" content="Blog automobile — cartes par modèle, articles, dark mode" />
+  <style>
+    :root{
+      --bg: #0f172a; /* dark bg fallback */
+      --card:#ffffff;
+      --muted:#6b7280;
+      --accent:#0ea5e9;
+      --shadow: 0 6px 20px rgba(2,6,23,0.12);
+      --glass: rgba(255,255,255,0.06);
     }
-    if (selectedTag) r = r.filter((p) => p.tags.includes(selectedTag));
-    // sort by date desc
-    r.sort((a, b) => new Date(b.date) - new Date(a.date));
-    return r;
-  }, [posts, query, selectedTag]);
+    /* Light theme vars */
+    :root[data-theme='light']{
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --muted: #6b7280;
+      --accent: #0ea5e9;
+      --shadow: 0 10px 30px rgba(2,6,23,0.06);
+      --glass: rgba(2,6,23,0.03);
+    }
 
-  const pageCount = Math.max(1, Math.ceil(filtered.length / perPage));
-  const paged = filtered.slice((page - 1) * perPage, page * perPage);
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg, var(--bg), #0000);
+      color: #0b1220;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      padding:32px;
+      transition:background .25s, color .25s;
+    }
+    [data-theme='dark'] body{ color: #e6eef8; }
 
-  useEffect(() => setPage(1), [query, selectedTag]);
+    .container{max-width:1100px;margin:0 auto}
 
-  return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors">
-      <header className="border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-slate-50 to-white dark:from-gray-900 dark:to-gray-900 sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-red-500 to-yellow-400 flex items-center justify-center font-bold text-white shadow">AUTO</div>
-            <div>
-              <div className="font-semibold">AutoBlog</div>
-              <div className="text-xs text-gray-600 dark:text-gray-400">Actualités, essais et guides</div>
-            </div>
-          </div>
+    header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:28px;
+    }
+    .brand{
+      display:flex;
+      gap:12px;
+      align-items:center;
+    }
+    .logo{
+      width:54px;height:54px;border-radius:12px;
+      display:flex;align-items:center;justify-content:center;
+      font-weight:700;color:white;background:linear-gradient(135deg,#ef4444,#f59e0b);
+      box-shadow:var(--shadow);
+    }
+    h1{font-size:20px;margin:0}
+    .subtitle{font-size:13px;color:var(--muted);margin-top:2px}
 
-          <div className="flex-1 max-w-xl">
-            <label className="relative block">
-              <input
-                className="w-full rounded-md border border-gray-200 dark:border-gray-800 px-3 py-2 bg-transparent placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-400"
-                placeholder="Rechercher un modèle, un thème, une marque..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </label>
-          </div>
+    .controls{display:flex;gap:10px;align-items:center}
+    .search{
+      position:relative;
+    }
+    .search input{
+      padding:10px 12px;border-radius:10px;border:1px solid var(--glass);
+      background:transparent;outline:none;width:260px;color:inherit;
+      box-shadow:var(--shadow);
+    }
+    .btn{
+      padding:9px 12px;border-radius:10px;border:1px solid var(--glass);
+      background:transparent;cursor:pointer;
+    }
 
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex gap-2">
-              <button
-                onClick={() => { setSelectedTag(null); }}
-                className={`px-3 py-1 rounded-full text-sm border ${!selectedTag ? 'bg-sky-500 text-white border-transparent' : 'bg-transparent'}`}
-              >
-                Tous
-              </button>
-              {allTags.map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setSelectedTag(t)}
-                  className={`px-3 py-1 rounded-full text-sm border ${selectedTag === t ? 'bg-sky-500 text-white border-transparent' : 'bg-transparent'}`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
+    /* Cards grid */
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+      gap:18px;
+    }
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0));
+      border-radius:14px;
+      overflow:hidden;
+      box-shadow:var(--shadow);
+      transition:transform .18s ease, box-shadow .18s;
+      cursor:pointer;
+      border:1px solid var(--glass);
+    }
+    .card:hover{ transform:translateY(-6px) }
+    .card .cover{height:150px; background-size:cover;background-position:center}
+    .card .content{padding:14px}
+    .card h3{margin:0;font-size:16px}
+    .card p{margin:8px 0 0;color:var(--muted);font-size:13px}
 
-            <button
-              onClick={() => setDark((s) => !s)}
-              title="Basculer thème"
-              className="p-2 rounded-md border border-gray-200 dark:border-gray-800"
-            >
-              {dark ? '🌙' : '☀️'}
-            </button>
-          </div>
+    .tag{display:inline-block;padding:6px 8px;border-radius:999px;font-size:12px;border:1px solid var(--glass);margin-right:6px}
+
+    /* Side panel / details */
+    .panel{
+      position:fixed;top:32px;right:32px;bottom:32px;width:460px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0));
+      border-radius:14px;padding:18px;box-shadow:0 20px 60px rgba(2,6,23,0.48);
+      transform:translateX(20px) scale(.99);opacity:0;pointer-events:none;transition:all .25s;
+      border:1px solid var(--glass);backdrop-filter: blur(6px);
+    }
+    .panel.open{transform:none;opacity:1;pointer-events:auto}
+    .panel .hd{display:flex;gap:10px;align-items:center}
+    .panel .hd img{width:80px;height:56px;object-fit:cover;border-radius:8px}
+    .panel .hd .meta{flex:1}
+    .panel .hd .meta h2{margin:0;font-size:18px}
+    .panel .hd .meta p{margin:6px 0 0;color:var(--muted);font-size:13px}
+    .panel .close{border:none;background:transparent;font-size:18px;cursor:pointer}
+
+    .articles-list{margin-top:14px;overflow:auto;max-height:calc(100% - 220px);padding-right:6px}
+    .article-item{padding:12px;border-radius:10px;border:1px solid var(--glass);margin-bottom:10px;background:transparent;cursor:pointer}
+    .article-item h4{margin:0;font-size:15px}
+    .article-item p{margin:8px 0 0;color:var(--muted);font-size:13px}
+
+    /* Article reader */
+    .reader{
+      position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(.98);width:90%;max-width:900px;max-height:90%;
+      background:var(--card);color:inherit;border-radius:12px;padding:22px;box-shadow:0 40px 120px rgba(2,6,23,0.6);
+      opacity:0;pointer-events:none;transition:all .22s;overflow:auto;border:1px solid var(--glass);
+    }
+    .reader.open{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+    .reader h1{margin-top:0}
+    .reader .meta{color:var(--muted);font-size:13px;margin-bottom:12px}
+    .reader img{width:100%;height:auto;border-radius:8px;margin:12px 0}
+
+    /* Footer */
+    footer{text-align:center;margin-top:30px;color:var(--muted);font-size:13px}
+
+    /* Responsiveness */
+    @media (max-width:1100px){ .panel{position:fixed;left:18px;right:18px;top:auto;bottom:18px;width:auto;height:60vh} }
+    @media (max-width:720px){
+      header{flex-direction:column;align-items:flex-start;gap:12px}
+      .search input{width:100%}
+      body{padding:18px}
+      .panel{right:18px;left:18px;bottom:18px;top:18px;width:auto}
+      .reader{width:96%}
+    }
+  </style>
+</head>
+<body data-theme="dark">
+  <div class="container">
+    <header>
+      <div class="brand">
+        <div class="logo">AUTO</div>
+        <div>
+          <h1>AutoBlog</h1>
+          <div class="subtitle">Cartes par modèle — clique pour voir les articles</div>
         </div>
-      </header>
+      </div>
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 items-center">
-          <div className="md:col-span-2 bg-gradient-to-br from-sky-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl p-8 shadow">
-            <h1 className="text-3xl md:text-4xl font-extrabold leading-tight">Le blog automobile pour les passionnés et conducteurs</h1>
-            <p className="mt-3 text-gray-600 dark:text-gray-300">Essais, guides pratiques, comparatifs et actualités — tout pour choisir et entretenir votre voiture.</p>
-            <div className="mt-6 flex gap-3">
-              <a href="#posts" className="inline-block px-5 py-2 rounded-xl bg-sky-600 text-white font-medium">Voir les derniers articles</a>
-              <a href="#" className="inline-block px-5 py-2 rounded-xl border">À propos</a>
-            </div>
-          </div>
+      <div class="controls">
+        <div class="search">
+          <input id="search" placeholder="Rechercher modèle ou article..." />
+        </div>
+        <button id="themeToggle" class="btn" title="Basculer thème">☀/🌙</button>
+      </div>
+    </header>
 
-          <div className="rounded-2xl overflow-hidden shadow bg-white dark:bg-gray-800 p-4">
-            <h3 className="font-semibold">À la une</h3>
-            <div className="mt-4 space-y-3">
-              {posts.slice(0, 3).map((p) => (
-                <article key={p.id} className="flex gap-3">
-                  <img src={p.cover} alt="cover" className="w-20 h-14 object-cover rounded-md" />
-                  <div>
-                    <div className="text-sm font-medium">{p.title}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">{formatDate(p.date)}</div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
+    <main>
+      <section>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <h2 style="margin:0">Modèles</h2>
+          <div style="font-size:13px;color:var(--muted)">1 modèle • clique pour ouvrir</div>
+        </div>
 
-        <section id="posts">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {paged.map((post) => (
-              <article key={post.id} className="rounded-2xl overflow-hidden bg-white dark:bg-gray-800 shadow">
-                <img src={post.cover} alt={post.title} className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <div className="text-xs text-gray-500 dark:text-gray-400">{formatDate(post.date)} • {post.tags.join(' • ')}</div>
-                  <h3 className="mt-2 font-semibold text-lg">{post.title}</h3>
-                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{post.excerpt}</p>
-                  <div className="mt-4 flex items-center justify-between">
-                    <a href="#" className="text-sm font-medium">Lire l'article →</a>
-                    <div className="text-xs text-gray-500">ID #{post.id}</div>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
+        <div class="grid" id="modelsGrid">
+          <!-- Cards inserted by JS -->
+        </div>
+      </section>
 
-          <div className="mt-8 flex items-center justify-between">
-            <div className="text-sm text-gray-600 dark:text-gray-400">{filtered.length} article(s)</div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="px-3 py-1 rounded-md border disabled:opacity-50"
-              >
-                Préc
-              </button>
-              <div className="px-3 py-1 rounded-md border">{page} / {pageCount}</div>
-              <button
-                onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-                disabled={page === pageCount}
-                className="px-3 py-1 rounded-md border disabled:opacity-50"
-              >
-                Suiv
-              </button>
-            </div>
-          </div>
-        </section>
+      <footer>
+        © <span id="year"></span> AutoBlog — Conçu avec ❤️
+      </footer>
+    </main>
+  </div>
 
-        <footer className="mt-12 border-t border-gray-200 dark:border-gray-800 pt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-          © {new Date().getFullYear()} AutoBlog — Conçu avec ❤️
-        </footer>
-      </main>
+  <!-- Side panel for model details -->
+  <aside id="panel" class="panel" aria-hidden="true">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="hd">
+        <img id="panelCover" src="" alt="cover" />
+        <div class="meta">
+          <h2 id="panelTitle">Titre</h2>
+          <p id="panelSubtitle">Sous-titre</p>
+        </div>
+      </div>
+      <div>
+        <button id="closePanel" class="close" aria-label="Fermer">✕</button>
+      </div>
     </div>
-  );
-}
+
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap" id="panelTags"></div>
+
+    <div class="articles-list" id="articlesList" tabindex="0">
+      <!-- list of articles -->
+    </div>
+  </aside>
+
+  <!-- Article reader -->
+  <article id="reader" class="reader" aria-hidden="true">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <h1 id="readerTitle"></h1>
+      <div><button id="closeReader" class="btn">Fermer</button></div>
+    </div>
+    <div class="meta" id="readerMeta"></div>
+    <img id="readerImage" alt="article image" />
+    <div id="readerContent" style="line-height:1.6;color:inherit"></div>
+  </article>
+
+  <script>
+    // ====== Data ======
+    const models = [
+      {
+        id: 'toyota-gr86',
+        name: 'Toyota GR86',
+        subtitle: 'Coupé sportif à propulsion (2021+)',
+        cover: 'https://images.unsplash.com/photo-1617545198800-c2e3d4f8b1c4?auto=format&fit=crop&w=1400&q=80',
+        tags: ['Toyota', 'GR86', 'Sportive', 'Propulsion'],
+        articles: [
+          {
+            id: 'gr86-1',
+            title: 'Toyota GR86 — Le retour d’une vraie sportive abordable',
+            date: '2025-11-11',
+            excerpt: 'La GR86 perpétue la lignée des coupés sportifs compacts à propulsion accessible. Succédant à la GT86, elle est née d’une collaboration avec Subaru.',
+            image: 'https://images.unsplash.com/photo-1617545198800-c2e3d4f8b1c4?auto=format&fit=crop&w=1600&q=80',
+            tags: ['Essai','Technique','Sportive'],
+            content: `
+<p>La Toyota GR86 perpétue la lignée des coupés sportifs compacts à propulsion accessible. Succédant à la GT86 lancée en 2012, elle naît une nouvelle fois de la collaboration avec Subaru, qui propose son modèle jumeau : la BRZ. Présentée en avril 2021, la GR86 reçoit l’appellation “GR” en hommage à Gazoo Racing, la division compétition de Toyota.</p>
+
+<p>Cette seconde génération reste fidèle à la même recette : moteur atmosphérique, boîte manuelle, deux places utiles et un châssis affûté. Mais elle progresse sur tous les points importants. La rigidité augmente, l’équilibre reste exemplaire et le centre de gravité baisse grâce à l’utilisation d’aluminium pour le toit, le capot et les ailes. Toujours légère, elle ne dépasse pas 1 275 kg.</p>
+
+<p>Sous le capot, on retrouve un 4-cylindres boxer de 2,4 litres développé par Subaru. Il gagne en puissance pour atteindre <strong>235 ch</strong> et <strong>250 Nm</strong>, avec une réponse moteur plus franche dès les bas régimes. Ce moteur atmosphérique performant mise sur la simplicité et le plaisir mécanique plutôt que sur la suralimentation.</p>
+
+<ul>
+<li>Puissance : 235 ch</li>
+<li>Couple : 250 Nm</li>
+<li>0-100 km/h : ~6,3 s</li>
+<li>Vitesse max : ~226 km/h</li>
+</ul>
+
+<p>La GR86 revendique ainsi une vitesse maximale de <strong>226 km/h</strong> et un <strong>0 à 100 km/h en 6,3 secondes</strong>, transmettant la puissance uniquement aux roues arrière via un différentiel à glissement limité Torsen. Certaines éditions spéciales renforcent son statut d’icône moderne.</p>
+
+<p><em>En bref : du plaisir sans artifice, une sportive analogique dans un monde devenu digital.</em></p>
+`
+          }
+        ]
+      }
+    ];
+
+    // ====== UI refs ======
+    const modelsGrid = document.getElementById('modelsGrid');
+    const panel = document.getElementById('panel');
+    const panelTitle = document.getElementById('panelTitle');
+    const panelSubtitle = document.getElementById('panelSubtitle');
+    const panelCover = document.getElementById('panelCover');
+    const panelTags = document.getElementById('panelTags');
+    const articlesList = document.getElementById('articlesList');
+    const closePanel = document.getElementById('closePanel');
+    const reader = document.getElementById('reader');
+    const readerTitle = document.getElementById('readerTitle');
+    const readerMeta = document.getElementById('readerMeta');
+    const readerImage = document.getElementById('readerImage');
+    const readerContent = document.getElementById('readerContent');
+    const closeReader = document.getElementById('closeReader');
+    const searchInput = document.getElementById('search');
+    const themeToggle = document.getElementById('themeToggle');
+    const yearSpan = document.getElementById('year');
+
+    yearSpan.textContent = new Date().getFullYear();
+
+    // ====== Theme ======
+    function applyTheme(t){
+      document.documentElement.setAttribute('data-theme', t);
+      document.body.setAttribute('data-theme', t);
+      localStorage.setItem('autoblog:theme', t);
+    }
+    const saved = localStorage.getItem('autoblog:theme') || 'dark';
+    applyTheme(saved);
+    themeToggle.addEventListener('click', ()=>{
+      const next = (document.documentElement.getAttribute('data-theme')==='dark')? 'light' : 'dark';
+      applyTheme(next);
+    });
+
+    // ====== Render models grid ======
+    function renderModels(filter=''){
+      modelsGrid.innerHTML = '';
+      const q = filter.trim().toLowerCase();
+      const list = models.filter(m => {
+        if(!q) return true;
+        return m.name.toLowerCase().includes(q) || m.tags.join(' ').toLowerCase().includes(q) || m.articles.some(a=> a.title.toLowerCase().includes(q));
+      });
+      list.forEach(m=>{
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="cover" style="background-image:url('${m.cover}')"></div>
+          <div class="content">
+            <h3>${m.name}</h3>
+            <p>${m.subtitle}</p>
+            <div style="margin-top:10px">
+              ${m.tags.slice(0,3).map(t=>`<span class="tag">${t}</span>`).join('')}
+            </div>
+          </div>
+        `;
+        card.addEventListener('click', ()=> openPanel(m.id));
+        modelsGrid.appendChild(card);
+      });
+
+      if(list.length === 0){
+        modelsGrid.innerHTML = `<div style="grid-column:1/-1;padding:18px;border-radius:12px;background:var(--card);text-align:center;color:var(--muted)">Aucun modèle trouvé</div>`;
+      }
+    }
+
+    // ====== Open panel for a model ======
+    function openPanel(modelId){
+      const m = models.find(x=>x.id===modelId);
+      if(!m) return;
+      panelTitle.textContent = m.name;
+      panelSubtitle.textContent = m.subtitle;
+      panelCover.src = m.cover;
+      panelTags.innerHTML = m.tags.map(t=>`<span class="tag">${t}</span>`).join('');
+      panel.classList.add('open');
+      panel.setAttribute('aria-hidden','false');
+
+      // render articles
+      articlesList.innerHTML = '';
+      m.articles.forEach(a=>{
+        const item = document.createElement('div');
+        item.className = 'article-item';
+        item.innerHTML = `<h4>${a.title}</h4><p>${a.excerpt}</p>`;
+        item.addEventListener('click', ()=> openArticle(a, m));
+        articlesList.appendChild(item);
+      });
+
+      // focus
+      setTimeout(()=>articlesList.focus(),200);
+    }
+
+    closePanel.addEventListener('click', ()=> {
+      panel.classList.remove('open');
+      panel.setAttribute('aria-hidden','true');
+    });
+
+    // ====== Open article reader ======
+    function openArticle(article, model){
+      readerTitle.textContent = article.title;
+      readerMeta.innerHTML = `${model.name} • ${article.date} • ${article.tags.join(' • ')}`;
+      readerImage.src = article.image;
+      readerContent.innerHTML = article.content;
+      reader.classList.add('open');
+      reader.setAttribute('aria-hidden','false');
+      // scroll to top of reader
+      reader.scrollTop = 0;
+    }
+    closeReader.addEventListener('click', ()=> {
+      reader.classList.remove('open');
+      reader.setAttribute('aria-hidden','true');
+    });
+
+    // close on ESC
+    window.addEventListener('keydown', (e)=>{
+      if(e.key==='Escape'){
+        if(reader.classList.contains('open')){ reader.classList.remove('open'); reader.setAttribute('aria-hidden','true'); }
+        else if(panel.classList.contains('open')){ panel.classList.remove('open'); panel.setAttribute('aria-hidden','true'); }
+      }
+    });
+
+    // search
+    searchInput.addEventListener('input', (e)=>{
+      renderModels(e.target.value);
+    });
+
+    // initial render
+    renderModels();
+
+    // small UX: open GR86 on load (optional) — comment out if you don't want this
+    // openPanel('toyota-gr86');
+  </script>
+</body>
+</html>
