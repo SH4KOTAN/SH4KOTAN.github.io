@@ -1,18 +1,239 @@
-<!DOCTYPE html>
-<html lang="en">
+/*
+AutoBlogApp.jsx
+Single-file React component (default export) for an automobile blog.
+Built with Tailwind CSS (no other required UI libs). Includes:
+- Header with logo, search, tag filters
+- Hero section
+- Responsive posts grid with cards
+- Pagination
+- Dark mode toggle (saved to localStorage)
+- Sample posts data (replace with your own or wire to GitHub data)
 
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-</head>
+How to use:
+1) Create a React app (Vite recommended):
+   npm create vite@latest my-autoblog -- --template react
+   cd my-autoblog
+   npm install
+2) Install Tailwind CSS (follow Tailwind docs). Quick setup:
+   npm install -D tailwindcss postcss autoprefixer
+   npx tailwindcss init -p
+   // then configure tailwind.config.js content paths and add @tailwind directives to index.css
+3) Copy this file to src/App.jsx and start the dev server:
+   npm run dev
+4) To deploy on GitHub Pages: build and push the `dist`/`build` folder; or use GitHub Pages action.
 
-<body>
-    <h1>Skyblog</h1>
-    <p>Welcome au mangeur de carte graphique</p>
-    <iframe width="1000" height="640"
-        src="https://drive.google.com/file/d/1ARJ6deGtSQXd9yfDVmWxyjd4a6E8QRz4/view?usp=sharing"> </iframe>
-</body>
+Customize: replace `SAMPLE_POSTS` with real posts (fetch from GitHub repo, headless CMS, or markdown parser).
+*/
 
-</html>
+import React, { useEffect, useMemo, useState } from "react";
+
+// ---------- Sample posts (replace with actual data) ----------
+const SAMPLE_POSTS = [
+  {
+    id: 1,
+    title: "La Tesla Model 3 : autonomie réelle et astuces",
+    excerpt:
+      "Test longue durée de la Model 3 : autonomie réelle, recharge et pièges à éviter.",
+    tags: ["Electrique", "Test", "Tesla"],
+    date: "2025-10-12",
+    cover: "https://images.unsplash.com/photo-1549921296-3ddc6e0fa8c0?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    id: 2,
+    title: "Top 10 des compactes économiques 2025",
+    excerpt: "Comparatif des meilleures compactes pour la ville et l'autoroute.",
+    tags: ["Comparatif", "Essence"],
+    date: "2025-08-03",
+    cover: "https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    id: 3,
+    title: "Comment préparer sa voiture pour l'hiver",
+    excerpt: "Checklist simple et rapide pour rouler serein quand les températures chutent.",
+    tags: ["Entretien", "Guide"],
+    date: "2025-11-01",
+    cover: "https://images.unsplash.com/photo-1542367597-1f6a0f3d0b5a?auto=format&fit=crop&w=1200&q=80",
+  },
+  // add more posts here
+];
+
+// ---------- Helpers ----------
+function formatDate(iso) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString("fr-FR", { year: "numeric", month: "short", day: "numeric" });
+  } catch {
+    return iso;
+  }
+}
+
+// ---------- Main component ----------
+export default function AutoBlogApp() {
+  const [posts] = useState(SAMPLE_POSTS);
+  const [query, setQuery] = useState("");
+  const [selectedTag, setSelectedTag] = useState(null);
+  const [page, setPage] = useState(1);
+  const perPage = 6;
+  const [dark, setDark] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("autoBlog:dark") === "1";
+  });
+
+  useEffect(() => {
+    if (dark) document.documentElement.classList.add("dark");
+    else document.documentElement.classList.remove("dark");
+    localStorage.setItem("autoBlog:dark", dark ? "1" : "0");
+  }, [dark]);
+
+  const allTags = useMemo(() => {
+    const s = new Set();
+    posts.forEach((p) => p.tags.forEach((t) => s.add(t)));
+    return Array.from(s);
+  }, [posts]);
+
+  const filtered = useMemo(() => {
+    let r = posts.slice();
+    if (query) {
+      const q = query.toLowerCase();
+      r = r.filter(
+        (p) => p.title.toLowerCase().includes(q) || p.excerpt.toLowerCase().includes(q) || p.tags.join(" ").toLowerCase().includes(q)
+      );
+    }
+    if (selectedTag) r = r.filter((p) => p.tags.includes(selectedTag));
+    // sort by date desc
+    r.sort((a, b) => new Date(b.date) - new Date(a.date));
+    return r;
+  }, [posts, query, selectedTag]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / perPage));
+  const paged = filtered.slice((page - 1) * perPage, page * perPage);
+
+  useEffect(() => setPage(1), [query, selectedTag]);
+
+  return (
+    <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors">
+      <header className="border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-slate-50 to-white dark:from-gray-900 dark:to-gray-900 sticky top-0 z-20">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-red-500 to-yellow-400 flex items-center justify-center font-bold text-white shadow">AUTO</div>
+            <div>
+              <div className="font-semibold">AutoBlog</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">Actualités, essais et guides</div>
+            </div>
+          </div>
+
+          <div className="flex-1 max-w-xl">
+            <label className="relative block">
+              <input
+                className="w-full rounded-md border border-gray-200 dark:border-gray-800 px-3 py-2 bg-transparent placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                placeholder="Rechercher un modèle, un thème, une marque..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex gap-2">
+              <button
+                onClick={() => { setSelectedTag(null); }}
+                className={`px-3 py-1 rounded-full text-sm border ${!selectedTag ? 'bg-sky-500 text-white border-transparent' : 'bg-transparent'}`}
+              >
+                Tous
+              </button>
+              {allTags.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setSelectedTag(t)}
+                  className={`px-3 py-1 rounded-full text-sm border ${selectedTag === t ? 'bg-sky-500 text-white border-transparent' : 'bg-transparent'}`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setDark((s) => !s)}
+              title="Basculer thème"
+              className="p-2 rounded-md border border-gray-200 dark:border-gray-800"
+            >
+              {dark ? '🌙' : '☀️'}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-4 py-8">
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 items-center">
+          <div className="md:col-span-2 bg-gradient-to-br from-sky-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl p-8 shadow">
+            <h1 className="text-3xl md:text-4xl font-extrabold leading-tight">Le blog automobile pour les passionnés et conducteurs</h1>
+            <p className="mt-3 text-gray-600 dark:text-gray-300">Essais, guides pratiques, comparatifs et actualités — tout pour choisir et entretenir votre voiture.</p>
+            <div className="mt-6 flex gap-3">
+              <a href="#posts" className="inline-block px-5 py-2 rounded-xl bg-sky-600 text-white font-medium">Voir les derniers articles</a>
+              <a href="#" className="inline-block px-5 py-2 rounded-xl border">À propos</a>
+            </div>
+          </div>
+
+          <div className="rounded-2xl overflow-hidden shadow bg-white dark:bg-gray-800 p-4">
+            <h3 className="font-semibold">À la une</h3>
+            <div className="mt-4 space-y-3">
+              {posts.slice(0, 3).map((p) => (
+                <article key={p.id} className="flex gap-3">
+                  <img src={p.cover} alt="cover" className="w-20 h-14 object-cover rounded-md" />
+                  <div>
+                    <div className="text-sm font-medium">{p.title}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{formatDate(p.date)}</div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="posts">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {paged.map((post) => (
+              <article key={post.id} className="rounded-2xl overflow-hidden bg-white dark:bg-gray-800 shadow">
+                <img src={post.cover} alt={post.title} className="w-full h-40 object-cover" />
+                <div className="p-4">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">{formatDate(post.date)} • {post.tags.join(' • ')}</div>
+                  <h3 className="mt-2 font-semibold text-lg">{post.title}</h3>
+                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{post.excerpt}</p>
+                  <div className="mt-4 flex items-center justify-between">
+                    <a href="#" className="text-sm font-medium">Lire l'article →</a>
+                    <div className="text-xs text-gray-500">ID #{post.id}</div>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="mt-8 flex items-center justify-between">
+            <div className="text-sm text-gray-600 dark:text-gray-400">{filtered.length} article(s)</div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-1 rounded-md border disabled:opacity-50"
+              >
+                Préc
+              </button>
+              <div className="px-3 py-1 rounded-md border">{page} / {pageCount}</div>
+              <button
+                onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+                disabled={page === pageCount}
+                className="px-3 py-1 rounded-md border disabled:opacity-50"
+              >
+                Suiv
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <footer className="mt-12 border-t border-gray-200 dark:border-gray-800 pt-6 text-center text-sm text-gray-600 dark:text-gray-400">
+          © {new Date().getFullYear()} AutoBlog — Conçu avec ❤️
+        </footer>
+      </main>
+    </div>
+  );
+}
